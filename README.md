@@ -4,9 +4,13 @@ Task:
 1. Wheel (OpenGL.exe)
 
 Wheel
+
 w - move forward
+
 s - move backward
+
 a - rotate left
+
 d - rotate right
 
 Use arrow keys to move the camera.
