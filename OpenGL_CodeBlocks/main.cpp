@@ -7,17 +7,24 @@
 
 #define pi (2*acos(0.0))
 
+int radius = 25;
 double cameraHeight;
 double cameraAngle;
 int drawgrid;
 int drawaxes;
 double angle;
+int y_angle, z_angle;
 
 struct point
 {
 	double x,y,z;
 };
 
+struct position{
+    double x, y;
+};
+
+struct position l;
 
 void drawAxes()
 {
@@ -62,23 +69,11 @@ void drawGrid()
 	}
 }
 
-void drawSquare(double a)
-{
-    //glColor3f(1.0,0.0,0.0);
-	glBegin(GL_QUADS);{
-		glVertex3f( a, a,2);
-		glVertex3f( a,-a,2);
-		glVertex3f(-a,-a,2);
-		glVertex3f(-a, a,2);
-	}glEnd();
-}
-
-
 void drawCircle(double radius,int segments)
 {
     int i;
-    struct point points[100];
-    glColor3f(0.7,0.7,0.7);
+    struct point points[1000];
+    //glColor3f(0.7,0.7,0.7);
     //generate points
     for(i=0;i<=segments;i++)
     {
@@ -97,79 +92,37 @@ void drawCircle(double radius,int segments)
     }
 }
 
-void drawCone(double radius,double height,int segments)
-{
-    int i;
-    double shade;
-    struct point points[100];
-    //generate points
-    for(i=0;i<=segments;i++)
-    {
-        points[i].x=radius*cos(((double)i/(double)segments)*2*pi);
-        points[i].y=radius*sin(((double)i/(double)segments)*2*pi);
-    }
-    //draw triangles using generated points
-    for(i=0;i<segments;i++)
-    {
-        //create shading effect
-        if(i<segments/2)shade=2*(double)i/(double)segments;
-        else shade=2*(1.0-(double)i/(double)segments);
-        glColor3f(shade,shade,shade);
-
-        glBegin(GL_TRIANGLES);
-        {
-            glVertex3f(0,0,height);
-			glVertex3f(points[i].x,points[i].y,0);
-			glVertex3f(points[i+1].x,points[i+1].y,0);
-        }
-        glEnd();
-    }
-}
-
-
-void drawSphere(double radius,int slices,int stacks)
-{
-	struct point points[100][100];
-	int i,j;
-	double h,r;
-	//generate points
-	for(i=0;i<=stacks;i++)
-	{
-		h=radius*sin(((double)i/(double)stacks)*(pi/2));
-		r=radius*cos(((double)i/(double)stacks)*(pi/2));
-		for(j=0;j<=slices;j++)
-		{
-			points[i][j].x=r*cos(((double)j/(double)slices)*2*pi);
-			points[i][j].y=r*sin(((double)j/(double)slices)*2*pi);
-			points[i][j].z=h;
-		}
-	}
-	//draw quads using generated points
-	for(i=0;i<stacks;i++)
-	{
-        glColor3f((double)i/(double)stacks,(double)i/(double)stacks,(double)i/(double)stacks);
-		for(j=0;j<slices;j++)
-		{
-			glBegin(GL_QUADS);{
-			    //upper hemisphere
-				glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
-				glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-				glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-                //lower hemisphere
-                glVertex3f(points[i][j].x,points[i][j].y,-points[i][j].z);
-				glVertex3f(points[i][j+1].x,points[i][j+1].y,-points[i][j+1].z);
-				glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,-points[i+1][j+1].z);
-				glVertex3f(points[i+1][j].x,points[i+1][j].y,-points[i+1][j].z);
-			}glEnd();
-		}
-	}
-}
-
-
 void drawSS()
 {
+    glTranslated(l.x,l.y,0);  // positioning the wheel to its position l
+    glTranslated(0,0,radius); // bringing the wheel on ground
+    glRotated(z_angle,0,0,1); // rotating the wheel with respect to z axis (rotate left or right)
+    glRotated(y_angle,0,1,0); // rotating the wheel with respect to y axis (forward or backward movement)
+    glRotated(90,1,0,0); // rotating the wheel to align it to point(0,0,0) and now in yz plane
+    for(int i = 0; i<100; i++){
 
+        ///Drawing 2 circle same distant from xy plane
+        glPushMatrix();
+        glColor3f(1,0,0);
+        glPushMatrix();
+        glTranslated(0,0,-0.05*(i));
+        drawCircle(radius,150);
+        glPopMatrix();
+        glPushMatrix();
+        glTranslated(0,0,0.05*(i));
+        drawCircle(radius,150);
+        glPopMatrix();
+        glPopMatrix();
+
+        ///Drawing spokes
+        glPushMatrix();
+        glTranslated(0,0,0.05*(i));
+        glColor3f(0,1,0);
+        drawCircle(radius,2);
+        glRotated(90,0,0,1);
+        drawCircle(radius,2); // basically a line.
+        glPopMatrix();
+    }
 }
 
 void keyboardListener(unsigned char key, int x,int y){
@@ -178,7 +131,39 @@ void keyboardListener(unsigned char key, int x,int y){
 		case '1':
 			drawgrid=1-drawgrid;
 			break;
-
+        case 'a':
+			z_angle += 1;
+			//z_angle = (z_angle + 1) % 360;
+			printf("a - z_angle - %d\n", z_angle);
+			break;
+        case 'd':
+            z_angle -= 1;
+            printf("d - z_angle - %d\n", z_angle);
+			break;
+        case 'w':
+            {
+                /// distance traveled in single click s = r * angle(in radian), I let this angle to be 1 degree.
+                double s = radius * (3.1416 / 180);
+                //printf("Before w - s (%f)  l.x (%f)  l.y (%f) z_angle (%d)\n", s, l.x, l.y, z_angle);
+                y_angle -= 1;
+                //printf("cos(z_angle) -> (%f) sin(z_angle) -> (%f)\n", cos(z_angle), sin(z_angle));
+                l.x -= (s * cos((z_angle * 3.1416) / 180));
+                l.y -= (s * sin((z_angle * 3.1416) / 180));
+                printf("After w - s (%f)  l.x (%f)  l.y (%f) z_angle (%d)\n", s, l.x, l.y, z_angle);
+                break;
+            }
+        case 's':
+			{
+			    /// distance traveled in single click s = r * angle(in radian), I let this angle to be 1 degree.
+			    double s = radius * (3.1416 / 180);
+			    //printf("Before s - s (%f)  l.x (%f)  l.y (%f) z_angle (%d)\n", s, l.x, l.y, z_angle);
+                y_angle += 1;
+                //printf("cos(z_angle) -> (%f) sin(z_angle) -> (%f)\n", cos(z_angle), sin(z_angle));
+                l.x += (s * cos((z_angle * 3.1416) / 180));
+                l.y += (s * sin((z_angle * 3.1416) / 180));
+                printf("After s - s (%f)  l.x (%f)  l.y (%f) z_angle (%d)\n", s, l.x, l.y, z_angle);
+                break;
+            }
 		default:
 			break;
 	}
@@ -301,18 +286,22 @@ void display(){
 
 
 void animate(){
-	angle+=0.05;
+	//angle+=0.05;
 	//codes for any changes in Models, Camera
 	glutPostRedisplay();
 }
 
 void init(){
 	//codes for initialization
-	drawgrid=0;
-	drawaxes=1;
+	drawgrid=1;
+	drawaxes=0;
 	cameraHeight=150.0;
 	cameraAngle=1.0;
 	angle=0;
+	y_angle = 0;
+	z_angle = 0;
+	l.x = 0;
+	l.y = 0;
 
 	//clear the screen
 	glClearColor(0,0,0,0);
